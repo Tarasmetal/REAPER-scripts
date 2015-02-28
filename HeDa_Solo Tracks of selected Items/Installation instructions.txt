@@ -1,0 +1,25 @@
+Solo Tracks of Selected Items
+
+Installation instructions:
+
+- Copy the script files to a folder you want. Typically /Scripts  inside your REAPER data folder, or inside REAPER in portable versions.
+
+- Start REAPER and add the scripts to the actions.
+
+- Run "HeDa_Solo Tracks of Selected Items - Install (R5).eel" once. 
+It will display a message that it has been installed correctly.
+
+- Add the toolbar button with the "HeDa_Solo Tracks of Selected Items (R5).eel" script.
+
+- Also you can import another script that is included in the package. It is a separated toolbar button or keyboard shortcut
+"HeDa_Toggle Solo Tracks of Selected Items.lua" it will just toggle the solo state once and not run in the background as the main one.
+
+
+- In case you move the scripts and you have to reinstall them and you have problems 
+starting the script, you must run the uninstallation script 
+"HeDa_Solo Tracks of Selected Items - Uninstall (R5).eel"
+
+
+
+HeDa
+2015-02-28
