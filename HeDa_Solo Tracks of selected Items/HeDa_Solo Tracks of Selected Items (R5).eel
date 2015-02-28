@@ -1,0 +1,66 @@
+/**
+ * ReaScript Name: Solo tracks of selected items 
+ * Description: Automatically solo tracks of selected items
+ * Instructions: Run the script. It will solo tracks of selected items 
+ until you run the script again and stop it
+ * Author: HeDa
+ * Author URl: http://forum.cockos.com/member.php?u=47822
+ * Repository: 
+ * Repository URl: 
+ * File URl: 
+ * License: GPL v3
+ * Forum Thread: http://forum.cockos.com/showthread.php?t=155988
+ * Forum Thread URl: 
+ * Version: 0.2 beta
+ * Version Date: 2015-02-28
+ * REAPER: 5.0
+ * Extensions: 
+ */
+
+///////////// OPTIONS //////////
+
+//////////////////////////////// End of Options
+
+
+
+
+
+
+
+
+
+// Don't modify below here 
+////////////////////////////////////////////////////////////////////////////////////////////// 
+
+cmd_section = "SoloTracksofSelectedItems";
+cmd_key = "commandID";
+main_installer_script = "HeDa_Solo Tracks of Selected Items - Install (R5).eel";
+main_script = "HeDa_Solo Tracks of Selected Items (R5).eel";
+
+
+get_action_context(#fn, sec, cmd);
+state = GetToggleCommandStateEx(sec, cmd);
+
+state <= 0 ? (
+  HasExtState(cmd_section, cmd_key) == false ? ( 
+		message=sprintf(#,"%s%s%s", "Run \"", main_installer_script, "\" once to install the script.");
+		ShowMessageBox(message, "Install required", 0);
+  ):(
+  		
+		GetExtState(#ds, cmd_section, cmd_key); 
+		match("%d", #ds, commandid); 
+		defer("Main_OnCommand(commandid, 0);");
+
+		SetToggleCommandState(sec, cmd, 1);
+		RefreshToolbar2(sec, cmd);
+		SetProjExtState(0, cmd_section, "togglestate", "1");
+		SetProjExtState(0, "heda", "temp_data", "");
+  );
+):(
+
+  SetToggleCommandState(sec, cmd, 0);
+  RefreshToolbar2(sec, cmd);
+  SetProjExtState(0, cmd_section, "togglestate", "0");
+  SetProjExtState(0, "heda", "temp_data", "");
+);
+

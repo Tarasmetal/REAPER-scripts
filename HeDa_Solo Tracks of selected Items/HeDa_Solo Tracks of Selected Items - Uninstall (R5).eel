@@ -1,0 +1,7 @@
+cmd_section = "SoloTracksofSelectedItems";
+cmd_key = "commandID";
+HasExtState(cmd_section, cmd_key) == 1 ? ( 
+	DeleteExtState(cmd_section, cmd_key, 1); 
+);	
+
+ShowMessageBox("Uninstalled. Install it again if you had problems starting the script.", "Uninstalled", 0);

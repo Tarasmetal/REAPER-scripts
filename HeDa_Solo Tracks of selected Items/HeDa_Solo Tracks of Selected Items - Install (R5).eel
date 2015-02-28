@@ -1,0 +1,146 @@
+/**
+ * ReaScript Name: HeDa_Solo Tracks of Selected Items - Install (R5)
+ * Description: Automatically solo tracks of selected items
+ * Instructions: Run this installation script once. Then use the main script.
+ * Author: HeDa
+ * Author URl: http://forum.cockos.com/member.php?u=47822
+ * Repository: 
+ * Repository URl: 
+ * File URl: 
+ * License: GPL v3
+ * Forum Thread: http://forum.cockos.com/showthread.php?t=155988
+ * Forum Thread URl: 
+ * Version: 0.2 beta
+ * Version Date: 2015-02-28
+ * REAPER: 5.0
+ * Extensions: 
+ */
+  
+/**
+ * Change log:
+ * v0.2 (2015-02-27)
+  + REAPER 5 toggle state support (no more window asking to terminate or launch another instance)
+  
+ * v0.1 (2015-02-21)
+  + automatically solo tracks of selected items
+  + option to add to selection 
+  + REAPER 5 toggle action support.
+
+*/
+
+
+
+
+///////////// OPTIONS //////////
+
+// solo_mode = 1; normal solo
+// solo_mode = 2; solo in place
+solo_mode = 2;
+
+// Add_to_Selection = 1; keeps previously soloed tracks unchanged until no item is selected.
+// Add_to_Selection = 0; only solo what is selected
+Add_to_Selection = 1;
+
+///////////////// End of Options
+
+
+
+
+
+
+
+
+
+
+
+
+// Don't modify below here 
+////////////////////////////////////////////////////////////////////////////////////////////// 
+
+
+lstate = -1;
+
+
+function run()
+(
+  numberitems=CountSelectedMediaItems(0);
+
+  numberitems==0 ? state = 0;
+  numberitems>0 ? (
+
+    numberitems!=numberitems_prev ? (
+      state = 2;
+      numberitems_prev=numberitems;
+    ):(
+      state = 1;
+    );
+
+  );
+  
+  
+  (state != lstate) || (state == 2)  ? (
+      
+  state>0 ? (
+    // some items selected or more items selected
+    
+    // Create array of tracks
+    TracksArray=0;
+    NumberTracks=0;
+    i=0;
+    loop(numberitems, 
+        (item = GetSelectedMediaItem(0,i)) ? (
+          (track = GetMediaItemTrack(item)) ? (
+            TracksArray[NumberTracks]=track;
+            NumberTracks+=1;
+          );        
+        );  
+        i+=1;
+    );  
+    //
+    
+    // solo tracks in array
+    Add_to_Selection == 0 ? Main_OnCommand(40340, 0);  // Unsolo all tracks
+    i=0;
+    loop(NumberTracks,
+      SetMediaTrackInfo_Value(TracksArray[i], "I_SOLO", solo_mode);  // solo tracks
+      i+=1;
+    );
+    
+  ):( 
+    // no items selected
+    Main_OnCommand(40340, 0);  // Unsolo all tracks
+  );
+  
+  lstate=state;
+
+  );
+  
+	GetProjExtState(0, cmd_section, "togglestate", #togglest);
+	match("%d", #togglest, togglestate);
+	togglestate == 1 ? (
+		defer("run();");		// execute mainloop constantly
+	)
+		
+);
+
+
+
+
+
+// V5 >>>
+cmd_section = "SoloTracksofSelectedItems";
+cmd_key = "commandID";
+main_script = "HeDa_Solo Tracks of Selected Items (R5).eel";
+HasExtState(cmd_section, cmd_key) == false ? ( 
+	get_action_context(#fn, sec, cmd);
+	SetExtState(cmd_section, cmd_key, sprintf(#,"%d", cmd), 1); 
+	message=sprintf(#,"%s%s%s", "Installed correctly.\nNow add the toolbar button with the \"", main_script, "\" file to run the script.");
+	ShowMessageBox(message, "Installed correctly", 0);
+):(
+
+	run();
+
+);
+// V5 <<<
+
+
