@@ -1,6 +1,18 @@
- -- SRT import to Text items
- -- dev alpha code. Use at your own risk
- 
+--- SRT import to Text items
+-- dev alpha code. Use at your own risk
+
+--[[ 
+ * Change log:
+ * v0.2 (2015-02-27)
+	+ multiline support
+	+ clean refresh
+	+ position items relative to start cursor position.
+	+ undo block for entire operation
+	
+ * v0.1 (2015-02-26)
+	+ initial verison
+--]]
+
  
 
 	dbug_flag = 0 -- set to 0 for no debugging messages, 1 to get them
@@ -25,13 +37,13 @@
 			-- there are notes already
 			chunk, note, chunk2 = s:match("(.*<NOTES\n)(.*)(\n>\nIMGRESOURCEFLAGS.*)")
 			newchunk = chunk .. newnote .. chunk2
-			--dbug(newchunk .. "\n")
+			dbug(newchunk .. "\n")
 			
 		else
 			--there are still no notes
 			chunk,chunk2 = s:match("(.*IID%s%d+)(.*)")
 			newchunk = chunk .. "\n<NOTES\n" .. newnote .. "\n>\nIMGRESOURCEFLAGS 0" .. chunk2
-			--dbug(newchunk .. "\n")
+			dbug(newchunk .. "\n")
 		end
 		reaper.GetSetItemState(item, newchunk)	-- set the new chunk with the note
 	end
@@ -50,14 +62,20 @@ function CreateTextItem(starttime, endtime, notetext)
 	--ref: Lua: MediaItem reaper.GetSelectedMediaItem(ReaProject proj, integer selitem)
 	item = reaper.GetSelectedMediaItem(0,0) -- get the selected item
 	
-	HeDaSetNote(item, "|" .. notetext) -- set the note  add | character to the beginning of each line. only 1 line for now.
+	HeDaSetNote(item, notetext) -- set the note  add | character to the beginning of each line. only 1 line for now.
 	
 	reaper.SetEditCurPos(endtime, 1, 0)	-- moves cursor for next item
 end
 
 
 function read_lines(filepath)
-
+	reaper.PreventUIRefresh(-10) -- prevent refreshing
+	
+	reaper.Undo_BeginBlock() -- Begin undo group
+	
+	
+	initialtime = reaper.GetCursorPosition();	-- store initial cursor position as time origin 00:00:00
+	
 	local f = io.input(filepath)
 	repeat
 	  s = f:read ("*l") -- read one line
@@ -72,9 +90,13 @@ function read_lines(filepath)
 				positionEnd = tonumber(eh)*3600 + tonumber(em)*60 + tonumber(es) + (tonumber(ems)/1000)
 				dbug ("positionStart=" .. positionStart)
 				dbug ("positionEnd=" .. positionEnd)
-				textline = f:read ("*l") -- read next line with the text
+				textline = ''
+				repeat 
+					line = f:read ("*l") -- read next line with the text
+					if line ~= "" then textline = textline .. "|" .. line .. "\n"; end;
+				until line==""
 				dbug ("textline=" .. textline)
-				CreateTextItem(positionStart, positionEnd, textline);  --creates the text item
+				CreateTextItem(positionStart+initialtime, positionEnd+initialtime, textline);  --creates the text item
 			end
 			
 		end
@@ -82,8 +104,19 @@ function read_lines(filepath)
 	until not s  -- until end of file
 
 	f:close()
-
-
+	
+	reaper.Main_OnCommand(40020,0) -- remove time selection
+	reaper.Main_OnCommand(40289,0) -- unselect all items
+	
+	--ref: reaper.SetEditCurPos(number time, boolean moveview, boolean seekplay)
+	reaper.SetEditCurPos(initialtime, 1, 1) -- move cursor to original position before running script
+	
+	
+	
+	--ref: Lua:  reaper.Undo_EndBlock(string descchange, integer extraflags)
+	reaper.Undo_EndBlock("import SRT subtitles", 0) -- End undo group
+	
+	reaper.PreventUIRefresh(10) -- can refresh again
 end
 
 
@@ -95,11 +128,8 @@ retval, filetxt = reaper.GetUserFileNameForRead("", "Select SRT file", "srt") --
 
 if retval then 
 	
-	reaper.Undo_BeginBlock()
 	read_lines(filetxt);
-	--ref: Lua:  reaper.Undo_EndBlock(string descchange, integer extraflags)
-	reaper.Undo_EndBlock("import SRT subtitles", 0)
-
+	
 else
 	--ref: Lua: integer reaper.ShowMessageBox(string msg, string title, integer type)
 	-- type 0=OK,1=OKCANCEL,2=ABORTRETRYIGNORE,3=YESNOCANCEL,4=YESNO,5=RETRYCANCEL : ret 1=OK,2=CANCEL,3=ABORT,4=RETRY,5=IGNORE,6=YES,7=NO
