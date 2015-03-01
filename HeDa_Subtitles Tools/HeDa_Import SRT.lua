@@ -1,6 +1,6 @@
 --[[
  * ReaScript Name: Import SRT
- * Description: Exports selected items notes to a SRT subtitles file
+ * Description: Imports SRT subtitles file as Text items
  * Instructions: Note that the initial cursor position is very important 
  * Author: HeDa
  * Author URl: http://forum.cockos.com/member.php?u=47822
