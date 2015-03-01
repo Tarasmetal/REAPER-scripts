@@ -1,7 +1,20 @@
---- SRT import to Text items
--- dev alpha code. Use at your own risk
-
---[[ 
+--[[
+ * ReaScript Name: Import SRT
+ * Description: Exports selected items notes to a SRT subtitles file
+ * Instructions: Note that the initial cursor position is very important 
+ * Author: HeDa
+ * Author URl: http://forum.cockos.com/member.php?u=47822
+ * Version: 0.2 beta
+ * Repository: 
+ * Repository URl: 
+ * File URl: 
+ * License: GPL v3
+ * Forum Thread:
+ * Forum Thread URl: 
+ * REAPER: 5.0
+ * Extensions: 
+ 
+ 
  * Change log:
  * v0.2 (2015-02-27)
 	+ multiline support
@@ -10,9 +23,14 @@
 	+ undo block for entire operation
 	
  * v0.1 (2015-02-26)
-	+ initial verison
---]]
+	+ initial version
+]]
 
+------------------- OPTIONS ----------------------------------
+-- this script has no options
+
+
+----------------------------------------------- End of Options
  
 
 	dbug_flag = 0 -- set to 0 for no debugging messages, 1 to get them
