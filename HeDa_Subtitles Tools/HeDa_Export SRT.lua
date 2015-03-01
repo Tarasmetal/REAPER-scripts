@@ -121,7 +121,7 @@ function export_txt(file)
 	reaper.SetEditCurPos(initialtime, 1, 1) -- move cursor to original position before running script
 	
 	--ref: Lua:  reaper.Undo_EndBlock(string descchange, integer extraflags)
-	reaper.Undo_EndBlock("import SRT subtitles", 0) -- End undo group
+	reaper.Undo_EndBlock("Export SRT subtitles", 0) -- End undo group
 	
 	reaper.PreventUIRefresh(10) -- can refresh again
 	
