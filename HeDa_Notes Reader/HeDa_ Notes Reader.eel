@@ -1,0 +1,453 @@
+/**
+ * ReaScript Name: Notes Reader 
+ * Description: Reads item's notes and displays them as subtitles in a window.
+ * Instructions: 
+ 
+   Create a Track with items (empty items preferred), with notes in them.
+   Run script. It will read notes from track 1 by default. 
+   To change which track contains the items, click on the script window. 
+   It will save the track ID you entered for next time you open it.
+   In REAPER 5 it will save it per project. In REAPER 4 it is saved globally.
+   Play and see how the item notes appear on the window. Resize the window or move it to fit your needs.
+   In REAPER 5 you can dock it to any docker you want and it will remember its position.
+   If recording, the background color and text will change to Red/White to notify that it is recording. It can be disabled. 
+   Customizable colors in the text notes:
+     
+   Background color: Enter <background="#33AA55"> as the last line of the note. #33AA55 is a color like in HTML standard.
+   To customize background without text. Enter a blank line first.
+ 	
+   Formatting text:
+      Bold – <b> ... </b> or {b} ... {/b}
+      Italic – <i> ... </i> or {i} ... {/i}
+      Underline – <u> ... </u> or {u} ... {/u}
+      Font color – <font color="#code"> ... </font>   
+ 
+   More options: 
+     - CTRL+Click to change text justification Left/Center.
+     - Right click to Enable/Disable recording notification.
+ 
+ * Author: HeDa
+ * Author URl: http://forum.cockos.com/member.php?u=47822
+ * Version: 0.6 beta
+ * Repository: 
+ * Repository URl: 
+ * File URl: 
+ * License: GPL v3
+ * Forum Thread:
+ * Forum Thread URl: http://forum.cockos.com/showthread.php?t=155928
+ * REAPER: 4.77
+ * Extensions: 
+ */
+ 
+/**
+ * Change log:
+ * v0.6 (2015-03-04)
+    + new multiline engine
+    + centered display option (good for subtitles) CTRL+Click to change left/center
+    + italics, bold, underline, font color support, and background color support.
+    # now also works in stopped mode 
+    # CPU optimizations
+	
+ * v0.5 (2015-03-01)
+    + multiline text supported
+    # bug fix some notes were not displayed 
+ 
+ * v0.4 (2015-02-25)
+	+ right click mouse button to enable/disable recording notification
+	
+ * v0.3 (2015-02-24)
+	+ remembers track id, globally in REAPER 4 and per project in REAPER 5
+ 
+ * v0.2 (2015-02-21)
+	+ REAPER 5 version with docked state support. It will remember docked position. Thanks spk77
+	+ REAPER 4 version as separated download
+ 
+ * v0.1 (2015-02-20)
+	+ Multiple readers. click on reader to specify track id to read from.
+	+ Customizable colors per item
+	+ Recording background color support. detects when it is recording. 
+
+ */
+
+
+ 
+///////////// OPTIONS //////////
+
+font_name = "Arial";	
+
+// Initial width of window
+Initial_width = 1274;	
+// Initial height of window
+Initial_height = 200;
+
+
+// Font colors - use values between 0-255
+font_color_r = 0;
+font_color_g = 0;
+font_color_b = 0;
+
+// Background color - use values between 0-255
+bg_r = 230;
+bg_g = 230;
+bg_b = 220;
+
+// Text color when recording - use values between 0-255
+font_rec_r = 255;
+font_rec_g = 255;
+font_rec_b = 255;
+
+// Background color when recording - use values between 0-255
+rec_r = 150;
+rec_g = 0;
+rec_b = 0;
+
+// Remember dock position per project or globally.
+Remember_dock_per_project = 1;
+
+//////////////////////////////// End of Options
+
+
+
+
+
+
+
+// Don't modify below here 
+////////////////////////////////////////////////////////////////////////////////////////////// 
+	
+
+
+	
+function GetTrackID_Dialog()
+(
+  GetUserInputs("Enter Track ID", 1, "ID:", #retvals_csv);
+  #dialogstr = #retvals_csv;
+  match("%i", #retvals_csv, input) ? (
+    readertrackid = input;
+	
+	//V4 >>>>
+		SetExtState("NotesReader", "trackid", #retvals_csv, 1); // store "track id" globally 
+	//V4 <<<<
+	
+
+	
+  );
+  
+);
+
+function ReadExtState(section, key, isint, default) (
+	HasExtState(section, key) ? ( 
+			GetExtState(#ds, section, key); 
+			isint == 1 ? match("%d", #ds, value) : value = #ds; 
+	) : value = default;
+	value;
+);
+
+function init(title, width, height, dockstate)
+(
+		
+	
+	readertrackid = ReadExtState("NotesReader", "trackid", 1, 1);
+	notifyrecording = ReadExtState("NotesReader", "notifyrecording", 1, 1);
+	centertext = ReadExtState("NotesReader", "centertext", 1, 1);
+	
+	
+
+		
+	// open window
+	gfx_init(title, width, height, dockstate);
+
+	// set initial background and text color 
+	gfx_a = 1; 
+	gfx_r_orig = font_color_r/255; 
+	gfx_g_orig = font_color_g/255; 
+	gfx_b_orig = font_color_b/255;
+	bg_color = bg_r + 256*bg_g + 65536*bg_b;
+	bg_color_orig = bg_color;
+	gfx_clear = bg_color;	// clears the background with bg_color
+	cursorchanged=0;
+);
+ 
+
+function getfirstline(string) local(search) 
+(
+	i=0;
+	search=true;
+	#line="";
+	
+	while(char=str_getchar(#str,0,'c')!=10)   // \n = 10   | = 124
+	(
+		strcpy_substr(#str,string,i,1);
+		char!=10 ? (
+		strcat(#line,#str);
+		
+		);
+		i+=1;
+	);
+	
+	#line;
+);
+
+function gfx_drawstrmultiline(string, size) local(wmax, hmax, w, h)
+(
+	i=1;
+	k=0;
+	wmax=0;
+	hmax=0;
+	linenum=0;
+	lenstring=strlen(string);
+	loop (lenstring, 
+		strcpy_substr(#str,string,i,1);
+		stricmp(#str, "|") == 0 || i==lenstring ? (
+			strcpy_substr(#line,string,k+1,i-k-1);
+			k=i;
+				// print line
+				#insideformat=#line;
+				matchi("<font color=\"%{#color}s\">%{#insidecolor}s</font>?",#line) ? ( 
+					strcpy_substr(#red,#color,1,2);
+					strcpy_substr(#green,#color,3,2);
+					strcpy_substr(#blue,#color,5,2);
+					match("%X", #red, f_r);
+					match("%X", #green, f_g);
+					match("%X", #blue, f_b);
+					gfx_a = 1; gfx_r = f_r/255; gfx_g = f_g/255; gfx_b = f_b/255;		
+				):( 
+					#insidecolor = #line;
+					gfx_a = 1; gfx_r=gfx_r_orig;	gfx_g=gfx_g_orig; gfx_b=gfx_b_orig;
+					GetPlayState() == 5 ? (	//recording?
+						gfx_a = 1; gfx_r = font_rec_r/255; gfx_g = font_rec_g/255; gfx_b = font_rec_b/255;	
+					);
+				);
+				
+				f='';
+				// check format
+				matchi("*<i>%{#insideformat}s</i>*",#insidecolor) ? ( f='i';);
+				matchi("*<b>%{#insideformat}s</b>*",#insidecolor) ? ( f='b';);
+				matchi("*<u>%{#insideformat}s</u>*",#insidecolor) ? ( f='u';);
+				
+				matchi("*<i><b>%{#insideformat}s</b></i>*",#insidecolor) ? ( f='bi';);
+				matchi("*<b><i>%{#insideformat}s</i></b>*",#insidecolor) ? ( f='bi';);
+				
+				matchi("*<u><b>%{#insideformat}s</b></u>*",#insidecolor) ? ( f='ub';);
+				matchi("*<b><u>%{#insideformat}s</u></b>*",#insidecolor) ? ( f='ub';);
+				matchi("*<u><i>%{#insideformat}s</i></u>*",#insidecolor) ? ( f='ui';);
+				matchi("*<i><u>%{#insideformat}s</u></i>*",#insidecolor) ? ( f='ui';);
+				
+				matchi("*<u><b><i>%{#insideformat}s</i></b></u>*",#insidecolor) ? ( f='ubi';);
+				matchi("*<u><i><b>%{#insideformat}s</b></i></u>*",#insidecolor) ? ( f='ubi';);
+	
+				f==='' ? (
+				#text=#insidecolor;
+				):(
+				#text=#insideformat;
+				);
+				
+				size==0 ? (
+					gfx_setfont(1, font_name, 100, f);
+					gfx_measurestr(#text,w,h);	// measure text
+					w > wmax ? wmax=w;
+					hmax = hmax + h;
+				):(
+					
+					gfx_setfont(1, font_name, size, f);
+					//center justification
+					centertext == 1 ? (
+						gfx_measurestr(#text,w,h);
+						gfx_x = (gfx_w-w)/2
+					): gfx_x = (gfx_texth/4);
+					gfx_y = (gfx_texth/4)+(gfx_texth*linenum); // y position
+					
+					 gfx_drawstr(#text); 
+				);
+	
+				
+				 
+				linenum+=1;
+				
+		);
+		i+=1;
+	);
+	
+	fontsizefit=(gfx_w/(wmax+50))*100;	// new font size needed to fit.
+	fontsizefith=(gfx_h/(hmax+50))*100;	// new font size needed to fit in vertical.
+	size_mlfit=min(fontsizefit,fontsizefith);
+);
+
+function formatlines(string) local(search)  
+(
+
+	offset=0;
+	#str="";
+	#returnstr="";
+	lenstring=strlen(string);
+	loop(lenstring,
+		strcpy_substr(#str, string, offset, 1);
+		char=str_getchar(#str,0,'c');
+		offset+=1;
+		char!=124 ? (
+			strcat(#returnstr,#str);
+		);
+	);
+	#returnstr;
+);
+
+
+function resetdisplay() 
+(
+	#notelines = "| ";
+	bg_color=bg_color_orig;	
+	gfx_r=gfx_r_orig;	gfx_g=gfx_g_orig; gfx_b=gfx_b_orig;
+	gfx_clear = bg_color;	// clears the background with bg_color
+	gfx_update();
+);
+
+function run() local(mouse_state)
+(
+		// get the track that has the lyrics
+		track=Gettrack(0,readertrackid-1);			// get track
+		
+		// get item under playing position in that track
+		cursorchanged=0;
+		i = 0;	
+		#stra="";
+		NumberItems = CountMediaItems(0);
+		notfounditem = 1;
+		
+		while (notfounditem) (
+			i < NumberItems ? (
+			(item = GetMediaItem(0,i)) ? (
+			(trackofitem = GetMediaItemTrack(item)) ? ( 
+				track==trackofitem ? (
+					itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
+					itemDuration = GetMediaItemInfo_Value(item, "D_LENGTH");
+					itemEnd = itemStart + itemDuration;
+
+					GetPlayState() == 0 || GetPlayState() == 2 ? (
+						playposition = GetCursorPosition();	// get current cursor position while stopped
+						playposition != playposition_prev ? (	// if position has changed
+							cursorchanged=1;
+							playposition_prev=playposition;
+						);
+					):(
+						playposition = GetPlayPosition();	// get current play position
+						cursorchanged = 1;
+					);
+					
+					
+					(playposition > itemStart) ? (
+						(playposition < itemEnd) ? (
+							// found
+							notfounditem=0;
+							GetSetItemState(item, #str="");
+							
+							match("*<NOTES?%{#notelines}s??IMGRESOURCEFLAGS*", #str) ? ( // extract note lines
+								
+								
+									// colors
+									#lines = "";
+									match("%s*|<background=\"%s\">?",#notelines, #lines, #backgroundcolor) ? ( 	// if bg color is found
+										strcpy_substr(#red,#backgroundcolor,1,2);
+										strcpy_substr(#green,#backgroundcolor,3,2);
+										strcpy_substr(#blue,#backgroundcolor,5,2);
+										match("%X", #red, b_r);
+										match("%X", #green, b_g);
+										match("%X", #blue, b_b);
+										bg_color = b_r + 256*b_g + 65536*b_b;	
+										colorsyntax=1;
+										#notelines=#lines;
+									):(
+										colorsyntax=0;
+										bg_color = bg_color_orig;
+									);
+							);
+						):( // no item found at position
+							notfounditem = 1;
+							#notelines="| ";
+						);
+					):(
+						notfounditem = 1;
+						#notelines="| ";
+						// not found
+					);
+				);		
+			);
+		);
+		i += 1;	
+		
+		):(// i < number items
+			// not found
+			notfounditem = 0; // 0 to end the while
+			cursorchanged == 1 ? (	// cursor has changed and not found any item
+			resetdisplay();
+			);
+		); 
+		
+		);	// while searching 
+		
+		
+	
+		GetPlayState() == 5 ? (	//recording? change to recording colors
+			notifyrecording == 1 ? (
+				bg_color = rec_r + 256*rec_g + 65536*rec_b;
+				gfx_a = 1; gfx_r = font_rec_r/255; gfx_g = font_rec_g/255; gfx_b = font_rec_b/255;	
+			);
+		);   
+	
+	gfx_clear = bg_color;	// clears the background with bg_color
+	gfx_update(); // update background first. less flicker, better background rendering.
+	gfx_drawstrmultiline(#notelines,0);	// calculate sizes first
+	gfx_drawstrmultiline(#notelines,size_mlfit);	// do it again and draw the texts
+	gfx_update();	// updata again. 
+
+	mouse_cap == 1 && mouse_y>20 && mouse_y<gfx_h-20 && mouse_x>20 && mouse_x<gfx_w-20 ? (
+		// mouse click to open dialog to specify track id.
+		GetTrackID_Dialog();
+	);
+	mouse_cap == 5 && mouse_y>20 && mouse_y<gfx_h-20 && mouse_x>20 && mouse_x<gfx_w-20 ? (
+	// CTRL+mouse click
+		centertext == 1 ? (
+			centertext = 0;
+			ShowMessageBox("Justification: Left", "Notes Reader", 0);
+		) : ( 
+			centertext = 1;
+			ShowMessageBox("Justification: Center", "Notes Reader", 0);
+		);
+	);
+	mouse_cap == 2 && mouse_y>20 && mouse_y<gfx_h-20 && mouse_x>20 && mouse_x<gfx_w-20 ? (
+		// right click
+		
+		notifyrecording == 1 ? (
+			notifyrecording = 0;
+			ShowMessageBox("Recording notification DISABLED", "Notes Reader", 0);
+			
+		) : ( 
+			notifyrecording = 1;
+			ShowMessageBox("Recording notification ENABLED", "Notes Reader", 0);
+		);
+	);
+	
+	gfx_getchar() >= 0 ? defer("run();");	// run again until closed.
+	
+);
+
+
+function exit() (
+
+
+	#notifyrecording = sprintf(#, "%d", notifyrecording); //  int -> str
+	SetExtState("NotesReader", "notifyrecording", #notifyrecording, 1); // store "notifyrecording"
+	#centertext = sprintf(#, "%d", centertext); //  int -> str
+	SetExtState("NotesReader", "centertext", #centertext, 1); // store "notifyrecording"
+	gfx_quit();
+);
+
+
+
+// start
+linearray=5000;
+init("HeDa - Notes Reader v0.6", Initial_width, Initial_height, dockstate);
+atexit("exit();");
+
+run();
+
+
