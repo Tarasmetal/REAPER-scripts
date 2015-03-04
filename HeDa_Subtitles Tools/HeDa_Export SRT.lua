@@ -16,12 +16,22 @@
  
  
  * Change log:
+ * v0.2 (2015-03-04)
+	+ default folder based on OS
+	+ user area
  * v0.2 (2015-02-28)
 	+ initial cursor position offset
  * v0.1 (2015-02-27)
 	+ initial version
 
 ]]
+------------------- USER AREA --------------------------------
+if reaper.GetOS() == "Win32" or reaper.GetOS() == "Win64" then
+	user_folder = "C:\\Users\\[username]\\" -- need to be test
+end
+	user_folder = "/USERS/[username]/" -- Mac OS. Not tested on Linux.
+end
+--------------------------------------------- End of User Area
 
 ------------------- OPTIONS ----------------------------------
 -- this script has no options
@@ -96,6 +106,10 @@ function export_txt(file)
 		
 		note = HeDaGetNote(item)  -- get the note text
 		
+		if note = nil then
+			note = "" 
+		end
+		
 		-- write item number 
 		f:write(i+1 .. "\n")
 		
@@ -155,13 +169,13 @@ if reaper.CountSelectedTracks(0) > 0 then
 	--ref: boolean retval, string stringNeedBig reaper.GetSetMediaTrackInfo_String(MediaTrack tr, string parmname, string stringNeedBig, boolean setnewvalue)
 	retval, track_label = reaper.GetSetMediaTrackInfo_String(track, "P_NAME", "", false)
 	
-	defaultvals_csv = "C:\\subtitles"; --default values
+	defaultvals_csv = user_folder --default values
 	--ref: boolean retval, string retvals_csv reaper.GetUserInputs(string title, integer num_inputs, string captions_csv, string retvals_csv)
 	retval, retvals_csv = reaper.GetUserInputs("Where to save the file?", 1, "Enter full path of the folder:", defaultvals_csv) 
 		
 	if retval then 
 		--dbug(retvals_csv)
-		filenamefull = retvals_csv .. "\\" .. track_label .. ".srt"
+		filenamefull = retvals_csv .. track_label .. ".srt"
 		export_txt(filenamefull)
 	else
 		--ref: Lua: integer reaper.ShowMessageBox(string msg, string title, integer type)
