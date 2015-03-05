@@ -1,0 +1,53 @@
+/**
+ * ReaScript Name: Regions & Markers from Items (Toolbar Button)
+ * Description: Shows/Hides markers using items in a track and unmuting/muting the track
+ * Instructions: 
+ 
+ Add this file to the toolbar button in REAPER 5 to launch the script.
+ It will display the toggle state if the script is running in the background.
+ 
+ * Author: HeDa
+ * Author URl: http://forum.cockos.com/member.php?u=47822
+ * Repository: 
+ * Repository URl: 
+ * File URl: 
+ * License: GPL v3
+ * Forum Thread:
+ * Forum Thread URl: http://forum.cockos.com/showthread.php?t=155582
+ * Version: 0.6 beta
+ * REAPER: 5.0
+ * Extensions: 
+ */
+ 
+ 
+cmd_section = "RegionsMarkersFromItems";
+cmd_key = "commandID";
+main_installer_script = "HeDa_Regions & Markers from Items (R5).eel";
+main_script = "HeDa_Regions & Markers from Items (toggle button).eel";
+
+
+get_action_context(#fn, sec, cmd);
+state = GetToggleCommandStateEx(sec, cmd);
+
+state <= 0 ? (
+  HasExtState(cmd_section, cmd_key) == false ? ( 
+		message=sprintf(#,"%s%s%s", "Run \"", main_installer_script, "\" once to install the script.");
+		ShowMessageBox(message, "Install required", 0);
+  ):(
+  		
+		GetExtState(#ds, cmd_section, cmd_key); 
+		match("%d", #ds, commandid); 
+		defer("Main_OnCommand(commandid, 0);");
+
+		SetToggleCommandState(sec, cmd, 1);
+		RefreshToolbar2(sec, cmd);
+		SetProjExtState(0, cmd_section, "togglestate", "1");
+		SetProjExtState(0, "heda", "temp_data", "");
+  );
+):(
+
+  SetToggleCommandState(sec, cmd, 0);
+  RefreshToolbar2(sec, cmd);
+  SetProjExtState(0, cmd_section, "togglestate", "0");
+  SetProjExtState(0, "heda", "temp_data", "");
+);

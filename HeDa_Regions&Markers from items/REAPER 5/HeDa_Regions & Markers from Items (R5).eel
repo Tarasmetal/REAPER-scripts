@@ -1,0 +1,95 @@
+/**
+ * ReaScript Name: Regions & Markers from Items
+ * Description: Shows/Hides markers using items in a track and unmuting/muting the track
+ * Instructions: 
+ 
+ This version runs in the background hidden without a window. It has its own options to optimize CPU
+ It can be very efficient to not to be worried about the CPU usage.
+ In REAPER 5, add this script to actions and run it once to install it. Then use the (toggle button) instead of this.
+ 
+ * Author: HeDa
+ * Author URl: http://forum.cockos.com/member.php?u=47822
+ * Repository: 
+ * Repository URl: 
+ * File URl: 
+ * License: GPL v3
+ * Forum Thread:
+ * Forum Thread URl: http://forum.cockos.com/showthread.php?t=155582
+ * Version: 0.6 beta
+ * REAPER: 5.0
+ * Extensions: 
+ */
+ 
+
+ 
+///////////// OPTIONS //////////
+  /* 
+  SWS auto coloring regions and markers seem not being able to set the color
+  when the regions are update in realtime when moving items. 
+  There is no way to redraw the regions from the script. UpdateArrenge() doesn't seem to work
+  But I found a hack way to force the update but it uses a bit of CPU.
+  This hack will enable to redraw them at a CPU cost if you need it. 
+  When closing the script it will always redraw them. 
+  realtime_redraw_regions_by_hack = 0; If you don't use SWS auto coloring of regions/markers.
+  realtime_redraw_regions_by_hack = 1; If you use SWS auto coloring and want it to work while moving items in realtime
+  */
+realtime_redraw_regions_by_hack = 0; 
+
+  /*
+  realtime_updates = 1;  When moving items, resizing, copying etc, it will automatically adjust the regions/markers
+  realtime_updates = 0;  If you want to update the regions/markers you will have to mute and unmute the track again.
+  */
+realtime_updates = 1;
+
+  /*
+  scan_tracks_once = 1;  Recommended. will scan tracks for suffixes only when opening the script. Improves performance.
+  scan_tracks_once = 0;  If you have many tracks performance will suffer. Will scan tracks suffixes continuously while the window is open 
+  The best is to setup the suffixes before running the script. So you can have this option enabled and have much better performance.
+  If you use the background version. Execute the script again to stop it and run it again to update the tracks.
+  */
+scan_tracks_once = 1;
+
+  /* 
+  Time in seconds between each realtime update of the regions. Increasing the number will use less CPU.
+  It can be less than 1 second. Example: Time_Interval = 0.5;
+  Set to 0 to disable and update as fast as it can.
+  */
+Time_Interval = 0.9; 
+
+//////////////////////////////// End of Options
+
+
+
+
+
+
+
+// Don't modify below here 
+////////////////////////////////////////////////////////////////////////////////////////////// 
+
+
+@import HeDa_Regions & Markers from Items UI.eel
+
+//V5>>>
+	cmd_section = "RegionsMarkersFromItems";
+	cmd_key = "commandID";
+	main_installer_script = "HeDa_Regions & Markers from Items (R5).eel";
+	main_script = "HeDa_Regions & Markers from Items (toggle button).eel";
+
+	HasExtState(cmd_section, cmd_key) == false ? ( 
+		get_action_context(#fn, sec, cmd);
+		SetExtState(cmd_section, cmd_key, sprintf(#,"%d", cmd), 1); 
+		message=sprintf(#,"%s%s%s", "Installed correctly.\nNow add the toolbar button with the \"", main_script, "\" file to run the script.");
+		ShowMessageBox(message, "Installed correctly", 0);
+	):(
+
+		ScanMarkerTracks();
+		MarkersLoop(1);
+
+	);
+//V5<<<
+//V4>>>
+// ScanMarkerTracks();
+// MarkersLoop(1);
+//V4<<<
+
