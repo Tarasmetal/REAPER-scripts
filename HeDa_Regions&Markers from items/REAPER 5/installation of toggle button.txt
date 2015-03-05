@@ -1,0 +1,24 @@
+Installation:
+
+This is only for the Toggle button in REAPER 5
+
+	Load all three scripts into the actions window in REAPER.
+
+	For the toggle button in REAPER 5 you have to copy and paste the Command ID string of 
+	the "HeDa_Regions & Markers from Items (R5).eel"
+	that is found in the actions window in the Command ID column.
+	it looks something like this "_468d5e1171a7aa4b8bd657b02809a398";
+	right click there and copy command id. Then paste it into the toggle script where it is indicated
+
+		// Installation:
+		// PASTE HERE THE Command ID STRING FROM THE "HeDa_Regions & Markers from Items (R5).eel" script
+		// COPY IT FROM THE ACTIONS WINDOW
+		Command_ID = "_468d5e1171a7aa4b8bd657b02809a398";    
+					  ^^^ replace this
+
+	Then add the toolbar button with the "HeDa_Regions & Markers from Items (toggle button).eel" action.
+
+	It should display the toggle state while the script is running in the background.
+
+
+	For the UI version it is not needed. Just launch the "HeDa_Regions & Markers from Items UI.eel"
