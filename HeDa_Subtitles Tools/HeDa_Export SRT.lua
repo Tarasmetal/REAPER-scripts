@@ -28,7 +28,7 @@
 ------------------- USER AREA --------------------------------
 if reaper.GetOS() == "Win32" or reaper.GetOS() == "Win64" then
 	user_folder = "C:\\Users\\[username]\\" -- need to be test
-end
+else
 	user_folder = "/USERS/[username]/" -- Mac OS. Not tested on Linux.
 end
 --------------------------------------------- End of User Area
@@ -106,7 +106,7 @@ function export_txt(file)
 		
 		note = HeDaGetNote(item)  -- get the note text
 		
-		if note = nil then
+		if note == nil then
 			note = "" 
 		end
 		
@@ -175,6 +175,7 @@ if reaper.CountSelectedTracks(0) > 0 then
 		
 	if retval then 
 		--dbug(retvals_csv)
+		if track_label == "" then track_label="Exported subtitles" end
 		filenamefull = retvals_csv .. track_label .. ".srt"
 		export_txt(filenamefull)
 	else
