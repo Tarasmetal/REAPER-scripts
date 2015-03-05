@@ -54,7 +54,7 @@ scan_tracks_once = 1;
   It can be less than 1 second. Example: Time_Interval = 0.5;
   Set to 0 to disable and update as fast as it can.
   */
-Time_Interval = 0.9; 
+Time_Interval = 1.5; 
 
 //////////////////////////////// End of Options
 
@@ -70,26 +70,7 @@ Time_Interval = 0.9;
 
 @import HeDa_Regions & Markers from Items UI.eel
 
-//V5>>>
-	cmd_section = "RegionsMarkersFromItems";
-	cmd_key = "commandID";
-	main_installer_script = "HeDa_Regions & Markers from Items (R5).eel";
-	main_script = "HeDa_Regions & Markers from Items (toggle button).eel";
-
-	HasExtState(cmd_section, cmd_key) == false ? ( 
-		get_action_context(#fn, sec, cmd);
-		SetExtState(cmd_section, cmd_key, sprintf(#,"%d", cmd), 1); 
-		message=sprintf(#,"%s%s%s", "Installed correctly.\nNow add the toolbar button with the \"", main_script, "\" file to run the script.");
-		ShowMessageBox(message, "Installed correctly", 0);
-	):(
-
-		ScanMarkerTracks();
-		MarkersLoop(1);
-
-	);
-//V5<<<
-//V4>>>
-// ScanMarkerTracks();
-// MarkersLoop(1);
-//V4<<<
+cmd_section = "RegionsMarkersFromItems";
+ScanMarkerTracks();
+MarkersLoop(1);
 

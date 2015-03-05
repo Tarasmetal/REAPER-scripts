@@ -18,32 +18,34 @@
  * REAPER: 5.0
  * Extensions: 
  */
- 
- 
-cmd_section = "RegionsMarkersFromItems";
-cmd_key = "commandID";
-main_installer_script = "HeDa_Regions & Markers from Items (R5).eel";
-main_script = "HeDa_Regions & Markers from Items (toggle button).eel";
+
+
+// Installation:
+// PASTE HERE THE Command ID STRING FROM THE "HeDa_Regions & Markers from Items (R5).eel" script
+// COPY IT FROM THE ACTIONS WINDOW
+Command_ID = "_468d5e1171a7aa4b8bd657b02809a398";
+
+
+
+
+// Don't modify below here //////////////////////////////////////////////////////////////////////////
+
+
+cmd_section = "RegionsMarkersFromItems"; 
 
 
 get_action_context(#fn, sec, cmd);
 state = GetToggleCommandStateEx(sec, cmd);
 
 state <= 0 ? (
-  HasExtState(cmd_section, cmd_key) == false ? ( 
-		message=sprintf(#,"%s%s%s", "Run \"", main_installer_script, "\" once to install the script.");
-		ShowMessageBox(message, "Install required", 0);
-  ):(
-  		
-		GetExtState(#ds, cmd_section, cmd_key); 
-		match("%d", #ds, commandid); 
+		commandid = NamedCommandLookup(Command_ID);
 		defer("Main_OnCommand(commandid, 0);");
 
 		SetToggleCommandState(sec, cmd, 1);
 		RefreshToolbar2(sec, cmd);
 		SetProjExtState(0, cmd_section, "togglestate", "1");
 		SetProjExtState(0, "heda", "temp_data", "");
-  );
+
 ):(
 
   SetToggleCommandState(sec, cmd, 0);

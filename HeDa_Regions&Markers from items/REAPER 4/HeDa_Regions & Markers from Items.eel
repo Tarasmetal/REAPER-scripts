@@ -54,7 +54,7 @@ scan_tracks_once = 1;
   It can be less than 1 second. Example: Time_Interval = 0.5;
   Set to 0 to disable and update as fast as it can.
   */
-Time_Interval = 0.9; 
+Time_Interval = 1.5; 
 
 //////////////////////////////// End of Options
 
@@ -70,9 +70,7 @@ Time_Interval = 0.9;
 
 @import HeDa_Regions & Markers from Items UI.eel
 
-
-//V4>>>
- ScanMarkerTracks();
- MarkersLoop(1);
-//V4<<<
+cmd_section = "RegionsMarkersFromItems";
+ScanMarkerTracks();
+MarkersLoop(1);
 
