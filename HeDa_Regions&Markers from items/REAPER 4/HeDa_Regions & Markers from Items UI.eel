@@ -1,0 +1,492 @@
+/**
+ * ReaScript Name: Regions & Markers from Items UI
+ * Description: Shows/Hides markers using items in a track and unmuting/muting the track
+ * Instructions: 
+ 
+ There are two versions of the script. One that runs in the background constantly
+ and one that opens a window where you can select which tracks to activate
+ 
+ Label the tracks containing your items with a suffix "Markers x" or "Regions x"
+ Where x is a number that will be used as the start id number for the markers.
+ You can have several tracks, with different starting numbers to avoid markers to have the same id.
+ You should avoid different tracks with same id markers.
+ For example you could have these tracks, with 100 items in each.
+ - EXPORT Regions 1
+ - Structure Regions 100
+ - Lyrics Regions 200
+ - Annotations 300
+ If you add/remove tracks while the script is running you should close and restart 
+ the script to refresh the list of tracks
+ 
+ Add some items, or empty items in the track.
+ The notes of the item will be used for the region or marker name.
+ Region or Marker color will be inherited from the item's color.
+ If you have SWS extensions with auto coloring regions or markers you should revise the settings below
+ 
+ When the script is running it will update the regions and markers, from the items in 
+ each track that is not muted. Mute the track and it will delete the markers. 
+ We have to delete them since we can't hide them. But if you want them back, 
+ just unmute the track. So it's like Show/Hide.
+ 
+ * Author: HeDa
+ * Author URl: http://forum.cockos.com/member.php?u=47822
+ * Repository: 
+ * Repository URl: 
+ * File URl: 
+ * License: GPL v3
+ * Forum Thread:
+ * Forum Thread URl: http://forum.cockos.com/showthread.php?t=155582
+ * Version: 0.6 beta
+ * REAPER: 4.77
+ * Extensions: 
+ */
+ 
+/**
+ * Change log:
+  * v0.6 (2015-02-26)
+    + UI clickable tracks 
+	
+  * v0.5 (2015-02-21)
+	+ Time_Interval to lower CPU consumption when update regions in realtime. Thanks to spk77
+	+ ToggleToolbar state support (REAPER 5)
+	# Background version now is the default version to be used
+	
+ * v0.4 (2015-02-19)
+	+ option to enable/disable compatibility with SWS auto color
+	+ option to enable/disable realtime updating regions/markers
+	+ option to scan for suffix in tracks only once for improving realtime performance
+ 
+ * v0.3 (2015-02-18)
+	+ Realtime updating regions/markers manipulating items, moving resizing, deleting, copying...
+	+ Regions support. Track's suffix "Regions x"
+	# Now it doesn't use selection actions for better performance in realtime manipulation of items.
+	
+ * v0.2 (2015-02-17)
+	+ grouped under one single script with UI and for both show or hide markers using mute buttons
+	+ Specify marker tracks adding the suffix "Markers %d" where %d is the number of marker initial id in the set 
+	# support for items without notes 
+ 
+ * v0.1 (2015-02-15)
+	+ Create and Delete markers from items positions in the track
+	+ Markers named with item's notes.
+	+ Marker color from item's displayed color
+  
+ */
+
+
+ 
+///////////// OPTIONS //////////
+	/* 
+	SWS auto coloring regions and markers seem not being able to set the color
+	when the regions are update in realtime when moving items. 
+	There is no way to redraw the regions from the script. UpdateArrenge() doesn't seem to work
+	But I found a hack way to force the update but it uses a bit of CPU.
+	This hack will enable to redraw them at a CPU cost if you need it. 
+	When closing the script it will always redraw them. 
+	realtime_redraw_regions_by_hack = 0; If you don't use SWS auto coloring of regions/markers.
+	realtime_redraw_regions_by_hack = 1; If you use SWS auto coloring and want it to work while moving items in realtime
+	*/
+realtime_redraw_regions_by_hack = 0; 
+
+	/*
+	realtime_updates = 1;  When moving items, resizing, copying etc, it will automatically adjust the regions/markers
+	realtime_updates = 0;  If you want to update the regions/markers you will have to mute and unmute the track again.
+	*/
+realtime_updates = 1;
+
+	/*
+	scan_tracks_once = 1;  Recommended. will scan tracks for suffixes only when opening the script. Improves performance.
+	scan_tracks_once = 0;  If you have many tracks performance will suffer. Will scan tracks suffixes continuously while the window is open 
+	The best is to setup the suffixes before running the script. So you can have this option enabled and have much better performance.
+	If you use the background version. Execute the script again to stop it and run it again to update the tracks.
+	*/
+scan_tracks_once = 1;
+
+	/* 
+	Time in seconds between each realtime update of the regions. Increasing the number will use less CPU.
+	It can be less than 1 second. Example: Time_Interval = 0.5;
+	Set to 0 to disable and update as fast as it can.
+	*/
+Time_Interval = 1.3; 
+//////////////////////////////// End of Options
+
+
+
+
+
+
+
+
+// Don't modify below here 
+////////////////////////////////////////////////////////////////////////////////////////////// 
+  
+
+
+
+ // Delete_Markers_from_tracks ////////////////////////////////////////////////
+function Delete_Markers_from_tracks(whichtrack, regions) local(i, item, take, track, kval)
+(	
+	track=Gettrack(0,whichtrack);
+	GetSetMediaTrackInfo_String(track, "P_NAME", #TrackName, false);		// get track's name
+	match("%s %{#initid}d",#TrackName);								// get the type and number suffix in track's name to define initial id number
+	k = 0;
+	loop(CountTrackMediaItems(track)+1,			// +1 allows you to delete one item, looking to improve this
+			match("%d", #initid, val);								// convert string to integer?
+			kval=k+val;
+			DeleteProjectMarker(0, kval, regions);						// delete the marker by id
+	k += 1;
+	);
+	
+);
+
+
+
+// Create_Markers_from_tracks ////////////////////////////////////////////////
+function Create_Markers_from_tracks(whichtrack, regions) local(i, item, take, track, kval)
+(	
+	
+	track=Gettrack(0,whichtrack);													// get track
+	GetSetMediaTrackInfo_String(track, "P_NAME", #TrackName, false);		// get track's name
+	match("%s %{#initid}d",#TrackName);								// get the type and number suffix in track's name to define initial id number
+
+	// loop to create all the markers for the track
+	i = 0;
+	k = 0; // number of item in track
+	loop(CountMediaItems(0),
+		(item = GetMediaItem(0,i)) ? (
+		(trackofitem = GetMediaItemTrack(item)) ? (
+			track==trackofitem ? (
+				regionColor = GetDisplayedMediaItemColor(item);
+				itemStart = GetMediaItemInfo_Value(item, "D_POSITION");
+				itemDuration = GetMediaItemInfo_Value(item, "D_LENGTH");
+				itemEnd = itemStart + itemDuration;
+
+				#note="";
+				GetSetItemState(item, #str="");
+				match("*<NOTES??%{#note}s???IMGRESOURCEFLAGS*", #str);
+				
+				/*  with REAPER 5 and sws 2.6.2 there will be this method to get the notes
+				  extension_api("ULT_GetMediaItemNote", #note, item);
+				  //#note += "new text\r\n"; // seems we have to use "\r\n" for newline
+				  //extension_api("ULT_SetMediaItemNote", item, #note);
+				  //UpdateItemInProject(item);
+				*/
+		
+				match("%d", #initid, val);  															// initial id number, convert string to integer?
+				kval=k+val;
+				//AddProjectMarker(0, regions, itemStart, itemEnd, #note, kval);
+				AddProjectMarker2(0, regions, itemStart, itemEnd, #note, kval, regionColor);   	// Create the marker
+				
+
+				k += 1;
+			);
+		);	
+		);
+	i += 1;
+	);
+	
+);
+
+function redrawregionshack() 
+(
+		// HACK to redraw regions... arggggghh  better way?
+			PreventUIRefresh(1);
+			track=GetTrack(0,0);
+			trackparam=GetMediaTrackInfo_Value(track, "I_FOLDERCOMPACT");
+			trackparam==0 ? (
+			SetMediaTrackInfo_Value(track, "I_FOLDERCOMPACT", 1);
+			):(
+			SetMediaTrackInfo_Value(track, "I_FOLDERCOMPACT", 0);
+			);
+			SetMediaTrackInfo_Value(track, "I_FOLDERCOMPACT", trackparam);
+			PreventUIRefresh(-1);
+		//
+);		
+
+function gfx_drawstr_xy(x,y,string) (
+	gfx_x = x;
+	gfx_y = y;
+	gfx_drawstr(string);
+);
+
+function ScanMarkerTracks()
+(
+// scan for Markers tracks that have the suffix "Markers %d" where %d is the first number id for markers in the set.
+	
+		i = 0;
+		MarkerTracksCount = 0;	// number of Marker tracks
+		MarkerTracksArray = 0; // Array with their id
+		MarkerTracksTypeArray = 2000; // Array for type of track marker=0 regions=1
+		MarkerTracksName = 1000; // Array for name of track
+		loop(CountTracks(0),
+			(track = GetTrack(0, i)) ? (
+				GetSetMediaTrackInfo_String(track, "P_NAME", TrackName, false);	// Track's name
+				
+				match("*Markers %{#initid}d",TrackName) ? (						// Does it end with Markers %d ? #initid = the initial id number 
+					
+					MarkerTracksArray[MarkerTracksCount]=i;								// store the id of the track that is Markers track.
+					MarkerTracksTypeArray[MarkerTracksCount]=0;							// set type array to 0
+					MarkerTracksName[MarkerTracksCount]=TrackName;
+					
+					MarkerTracksCount += 1;													// prepare for next track
+				);
+				match("*Regions %{#initid}d",TrackName) ? (						// Does it end with Regions %d ? #initid = the initial id number 
+					
+					MarkerTracksArray[MarkerTracksCount]=i;								// store the id of the track that is Regions track.
+					MarkerTracksTypeArray[MarkerTracksCount]=1;							// set type array to 1
+					MarkerTracksName[MarkerTracksCount]=TrackName;
+					
+					MarkerTracksCount += 1;													// prepare for next track
+					
+				);
+			);
+		i += 1;	// go to next track
+		);
+		
+		
+	
+);
+
+
+function MarkersLoop(inbackground)
+(
+
+	scan_tracks_once==0 ? (
+		ScanMarkerTracks();
+	);	
+	
+	// create the array of muted states, only for the marker tracks.
+	i = 0;
+	mute_state=MarkerTracksCount; // start array initialization after the number of marker tracks.
+	loop(MarkerTracksCount,
+		(track = GetTrack(0, MarkerTracksArray[i])) ? (					// MarkerTracksArray[i] = the id of the track in the overall track list.
+			mute_state[i] = GetMediaTrackInfo_Value(track, "B_MUTE");  	// set mute_state array: 1 for muted or 0 for unmuted.
+			isregion=MarkerTracksTypeArray[i];
+			
+			nofirstrun != 1 ? (	
+			// check all tracks first
+			// execute this only the first time
+				mute_state[i] == 0 ? (
+					Delete_Markers_from_tracks(MarkerTracksArray[i],isregion);
+					Create_Markers_from_tracks(MarkerTracksArray[i],isregion);
+					redrawregionshack();
+				) : (
+					Delete_Markers_from_tracks(MarkerTracksArray[i],isregion);
+				);
+
+			);	
+		
+		);
+	i += 1;		// go to next Region/Marker track
+	);
+	
+	nofirstrun=1;	// flag run
+	
+	
+	// realtime updates (continuously update unmuted region/marker tracks)
+	realtime_updates == 1 ? (
+		time_precise() - t1 > Time_Interval ? ( // execute code when at least 0.5 seconds has passed 
+			i = 0;
+			loop(MarkerTracksCount,
+				isregion=MarkerTracksTypeArray[i];
+				mute_state[i] == 0 ? (
+					Delete_Markers_from_tracks(MarkerTracksArray[i],isregion);
+					Create_Markers_from_tracks(MarkerTracksArray[i],isregion);
+					realtime_redraw_regions_by_hack==1 ? ( 
+						redrawregionshack();
+					);
+				);
+			i += 1;	 	// go to next Region/Marker track
+			); // end loop
+			time_precise(t1); // "reset" timer
+			Time_Interval_flag = 0;		// time has passed and markers created. 
+		):(
+			// Time Interval has not passed yet.
+			Time_Interval_flag = 1;	// flag
+		);	// end if timer optimization
+	);	// end if realtime_updates
+
+	//now we have the arrays
+	//MarkerTracksArray[x]: ids of marker tracks
+	//mute_state[y]: muted state of marker tracks
+  
+	// loop in the marker tracks
+	// check if muted state of a track has changed from previous mainloop run
+	last_mute_state=MarkerTracksCount*2;	// start array at next free slot.
+	m = 0;
+	loop(MarkerTracksCount,
+		// check if changed from previous state
+		last_mute_state[m] != mute_state[m] ? (				// there is a changed muted state of track with id m
+			mute_state[m]==1 ? ( 										
+				// if track is now muted
+				isregion=MarkerTracksTypeArray[m];
+				Delete_Markers_from_tracks(MarkerTracksArray[m],isregion);	// delete markers of track m
+				//ScanMarkerTracks();
+			):(	
+				// track is now unmuted
+				realtime_updates==0 || Time_Interval_flag == 1 ? (	//if realtime updates disabled or tima_interval has not passed yet
+					isregion=MarkerTracksTypeArray[m];
+					Create_Markers_from_tracks(MarkerTracksArray[m],isregion);
+					//ScanMarkerTracks();
+				);
+			);
+			last_mute_state[m] = mute_state[m];				// store last mute state as it is now
+		);
+	m +=1; // go to next marker track
+	);
+
+  inbackground==1 ? (
+	char >= 0 ? (					// if window is visible
+		
+		//V4>>>
+			defer("MarkersLoop(1);");		// execute mainloop constantly
+		//V4<<<
+	);
+	
+	
+  );
+  
+);
+
+function draw_clickable_string(x, y, name, state_array_pos, r,g,b) local(s_w, s_h) // fork from spk77 function
+( 
+  gfx_x = x;
+  gfx_y = y;
+  gfx_measurestr(name, s_w, s_h);
+
+  state_array[state_array_pos] == 0 ? gfx_a = 1 : gfx_a = 0.3; // highlight selected properties
+  gfx_r = r; gfx_g = g; gfx_b = b;
+  // is mouse on string...?
+  mouse_x > x && mouse_x < x + s_w && mouse_y > y && mouse_y < y + gfx_texth ? (
+
+	mouseonstring=1;
+	gfx_a = 0.2;
+    gfx_rect(x, y, gfx_w, gfx_texth);
+    gfx_a = 0.8;
+
+    mouse_cap == 1 && mouse_state == 0 ? ( // left mouse button down and not already toggled ?
+      state_array[state_array_pos] = !state_array[state_array_pos];
+      // state toggled - mbutton has to be released and pressed down again to toggle state
+      // mouse state is checked again at the end - just before gfx_update()
+      mouse_state = 1; 
+	 
+		//mute/unmute tracks
+		track=GetTrack(0, state_array_pos);
+		SetMediaTrackInfo_Value(track, "B_MUTE", state_array[state_array_pos]);
+		//
+	
+    );
+
+//V4>>>
+);
+//V4<<<
+  gfx_printf(name);
+);
+
+
+function UI() 
+(
+//UI
+	
+	
+	
+	gfx_setfont(1); 	
+	gfx_r = 0.3; gfx_g = 0.3; gfx_b = 0.3;
+	// text in the UI
+	gfx_drawstr_xy(20,10,"Add suffix \"Regions x\" or \"Markers x\" to tracks.");
+	gfx_drawstr_xy(20,20,"x = initial ID number of the track's regions.");
+	gfx_drawstr_xy(20,30,"Mute/Unmute tracks to Hide/Show regions/markers.");
+	gfx_drawstr_xy(20,40,"Press Esc or close window to finish. ");
+
+	//gfx_drawstr_xy(20,60,sprintf(#,"%s %d %s", "There are", MarkerTracksCount, "Region/Marker Tracks detected"));
+	
+	
+	
+	gfx_setfont(2); 
+    tracktext_y = 70;
+  
+	mouseonstring=0;
+	t=0;
+	loop(MarkerTracksCount,
+		(trackdisp = GetTrack(0, t)) ? (
+			GetSetMediaTrackInfo_String(trackdisp, "P_NAME", TrackNameDisp, false);	// Track's name
+		);
+		
+		
+		mute_state[t] == 1 ? (
+			gfx_setfont(4); tracktext_x = 20;
+			draw_clickable_string(tracktext_x, tracktext_y+2, "M", t, 1, 0, 0);
+			trackstring=sprintf(#,"%s", #MarkerTracksName[t]);
+			state_array[t] = mute_state[t];
+			
+			gfx_setfont(2); tracktext_x = 40;
+			draw_clickable_string(tracktext_x, tracktext_y, trackstring, t, 0, 0, 0);
+		):(
+			gfx_setfont(4); tracktext_x = 20;
+			draw_clickable_string(tracktext_x, tracktext_y+2, " ", t, 0.7, 0.7, 0.7);	
+			trackstring=sprintf(#,"%s", #MarkerTracksName[t]);
+			state_array[t] = mute_state[t];
+			
+			gfx_setfont(2); tracktext_x = 40;
+			draw_clickable_string(tracktext_x, tracktext_y, trackstring, t, 0, 0, 0);
+		);
+		
+		
+
+		//track=GetTrack(0, t);
+		//SetMediaTrackInfo_Value(track, "B_MUTE", state_array[t]);
+		
+		tracktext_y=tracktext_y+gfx_texth;
+		
+		t+=1;
+	);
+	
+		
+	//------- 
+	char = gfx_getchar();
+	// ctrl+lmb to Undo
+	char == 26 ? (
+	Main_OnCommand(40029, 0); // undo
+	);
+	// Esc to exit
+	char == 27 ? (
+	gfx_quit();
+	);
+	
+	mouse_cap == 0 ? mouse_state = 0 : mouse_state = 1;
+	gfx_update();
+	
+	char >= 0 ? (					// if window is visible
+		defer("mainloop();");		// execute mainloop constantly
+	);
+	
+	char ==-1 ? (
+		redrawregionshack();
+	);
+);
+
+function mainloop() local(i, typeregion, regions, track, mute_state, mute_state2, last_mute_state, last_mute_state2)
+(
+	MarkersLoop(0);
+    UI();
+); 
+
+
+// start
+cmd_section = "RegionsMarkersFromItems";
+cmd_key = "commandID";
+main_installer_script = "HeDa_Regions & Markers from Items (R5).eel";
+main_script = "HeDa_Regions & Markers from Items (toggle button).eel";
+
+state_array = 10000;
+gfx_init("HeDa - Regions/Markers from Items v0.6", 420,200);
+gfx_setfont(2,"Arial", 18);
+gfx_setfont(3,"Arial", 24);
+gfx_setfont(4,"Arial", 16, 'b');
+bg_color = 180 + 256*180 + 65536*190;
+gfx_clear = bg_color;	// clears the background with bg_color
+  
+ScanMarkerTracks();
+mainloop();
+
+
